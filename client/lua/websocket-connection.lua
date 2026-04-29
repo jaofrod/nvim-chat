@@ -1,5 +1,3 @@
-module("websocket-connection", package.seeall)
-
 local websocket = require("websocket")
 websocket.setup()
 
@@ -8,17 +6,26 @@ local websocketClient = require("websocket.client").WebsocketClient
 ---@class WebsocketClient
 local client = nil
 
-W = {}
+local M = {}
 
-W.send = function(msg)
+M.send = function(msg)
+	if client == nil then
+		vim.notify("nvim-chat is not connected", vim.log.levels.WARN)
+		return
+	end
+
 	client:try_send_data(msg)
 end
 
-W.connect = function(buf)
+M.connect = function(buf)
 	client = websocketClient.new({
 		connect_addr = "ws://localhost:8080",
 		on_message = function(self, msg)
-			vim.api.nvim_buf_set_lines(buf, -1, -1, false, { msg })
+			vim.schedule(function()
+				if vim.api.nvim_buf_is_valid(buf) then
+					vim.api.nvim_buf_set_lines(buf, -1, -1, false, { msg })
+				end
+			end)
 		end,
 		on_connect = function(self)
 			print("Connected")
@@ -28,19 +35,10 @@ W.connect = function(buf)
 		end,
 		on_error = function(self, err)
 			print("Error: ", err)
-		end
+		end,
 	})
 
 	client:try_connect()
-
-	print('client', client)
-
-	-- initial test 
-	-- vim.defer_fn(function()
-	-- 	print("Sending test data")
-	-- 	local test_data = "user: 'test', text: 'Hello, world!'"
-	-- 	client:try_send_data(test_data)
-	-- end, 2000)
 end
 
-return W
+return M
